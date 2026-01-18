@@ -1,0 +1,12 @@
+{
+  "features": [
+    "temperature",
+    "humidity",
+    "pressure",
+    "wind_speed",
+    "pm2_5",
+    "pm10"
+  ],
+  "n_features": 6,
+  "description": "Feature order for model.predict()"
+}
