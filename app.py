@@ -1,21 +1,7 @@
-"""
-=============================================================================
-WEATHER-HEALTH-AQI PROJECT: STREAMLIT APP
-=============================================================================
-
-Purpose: Interactive app for AQI prediction + health advisory
-Features: 6 (temperature, humidity, pressure, wind_speed, pm2_5, pm10)
-Output: Real-time AQI forecast + health recommendations
-
-Production-grade, no approximations.
-=============================================================================
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import json
-import joblib
 import requests
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
@@ -23,7 +9,6 @@ import plotly.express as px
 from typing import Dict, List, Tuple, Optional
 import warnings
 import os
-
 from ollama import Client
 
 warnings.filterwarnings('ignore')
