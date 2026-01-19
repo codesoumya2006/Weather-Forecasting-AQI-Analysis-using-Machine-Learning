@@ -6,8 +6,6 @@ joblib==1.3.1
 requests==2.31.0
 plotly==5.17.0
 python-dotenv==1.0.0
-<<<<<<< HEAD
 ollama
-=======
-ollama
->>>>>>> 53f27b2284bf75b6f211bd16773c747add5f6b07
+
+
