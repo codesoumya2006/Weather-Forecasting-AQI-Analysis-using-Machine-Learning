@@ -1,8 +1,3 @@
-"""
-README: Environmental Health Advisory System
-Production-ready Streamlit application with ML-powered health risk prediction
-"""
-
 # 🌍 Daily Environmental Health Advisory System
 
 ## Overview
