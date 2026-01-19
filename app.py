@@ -13,9 +13,7 @@ from ollama import Client
 
 warnings.filterwarnings('ignore')
 
-# =============================================================================
-# PAGE CONFIG
-# =============================================================================
+
 
 st.set_page_config(
     page_title="Weather-Health AQI",
@@ -24,9 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# =============================================================================
-# CONSTANTS & CONFIGURATION
-# =============================================================================
+
 
 REQUIRED_FEATURES = ['temperature', 'humidity', 'pressure', 'wind_speed', 'pm2_5', 'pm10']
 
@@ -40,9 +36,6 @@ AQI_CATEGORIES = {
     'Hazardous': (301, 500, '#7E0023')
 }
 
-# =============================================================================
-# CACHE & STATE
-# =============================================================================
 
 @st.cache_resource
 def load_model_artifacts():
@@ -95,9 +88,6 @@ def get_secrets():
     # 3. Hardcoded as last resort (for development only)
     return "dd03db6b19872c7cb9d5af234821dd03"
 
-# =============================================================================
-# API CALLS WITH ERROR HANDLING
-# =============================================================================
 
 def geocode_city(city_name: str, api_key: str) -> Optional[Tuple[float, float]]:
     """Convert city name to (lat, lon)"""
@@ -198,10 +188,6 @@ def fetch_air_pollution(lat: float, lon: float, api_key: str) -> Optional[Dict]:
         st.error(f"❌ Air pollution fetch failed: {str(e)}")
         return None
 
-# =============================================================================
-# PREDICTION PIPELINE (ALIGNED TO 6 FEATURES)
-# =============================================================================
-
 def predict_aqi(weather_data: Dict, pollution_data: Dict, model, scaler) -> Optional[float]:
     """
     Predict AQI using model.
@@ -245,12 +231,6 @@ def categorize_aqi(aqi: float) -> Tuple[str, str]:
             return category, color
     
     return 'Hazardous', '#7E0023'
-
-# =============================================================================
-# ADVANCED HEALTH ADVISORY ENGINE (OLLAMA-POWERED)
-# =============================================================================
-# Ollama Cloud Integration: gpt-oss:120b model
-# =============================================================================
 
 def initialize_ollama_client(api_key: str, host: str = "https://ollama.com"):
     """Initialize Ollama client with Cloud API credentials"""
@@ -350,10 +330,6 @@ Keep language clean, actionable, and concise."""
     return output
 
 
-# =============================================================================
-# VISUALIZATIONS
-# =============================================================================
-
 def create_aqi_gauge(aqi: float, category: str, color: str) -> go.Figure:
     """Gauge chart for AQI (kept for legacy compatibility)"""
     fig = go.Figure(go.Indicator(
@@ -434,10 +410,6 @@ def create_weather_profile(weather: Dict) -> go.Figure:
     )
     
     return fig
-
-# =============================================================================
-# FORECAST VISUALIZATION FUNCTIONS (NEW)
-# =============================================================================
 
 def create_aqi_forecast_chart(aqi_base: float, days: int = 5) -> go.Figure:
     """AQI trend line chart with forecast"""
@@ -610,11 +582,6 @@ def create_pollutants_combined_chart(pollution_data: Dict, days: int = 5) -> go.
     )
     
     return fig
-
-# =============================================================================
-# MAIN APP
-# =============================================================================
-
 def main():
     st.title("🌍 Weather-Health AQI Forecaster")
     st.markdown("Real-time air quality predictions with personalized health guidance")
@@ -664,10 +631,6 @@ def main():
             
             st.markdown("---")
             
-            # ========================================================================
-            # STEP 1: ENVIRONMENT SNAPSHOT
-            # ========================================================================
-            
             st.header("📍 Current Environmental Snapshot")
             
             col1, col2, col3, col4 = st.columns(4)
@@ -702,10 +665,6 @@ def main():
                 )
             
             st.markdown("---")
-            
-            # ========================================================================
-            # STEP 2: FORECAST VISUALIZATIONS
-            # ========================================================================
             
             st.header("📊 Environmental Trends & Forecasts")
             
@@ -762,10 +721,6 @@ def main():
             
             st.markdown("---")
             
-            # ========================================================================
-            # STEP 3: STRUCTURED DATA TABLES
-            # ========================================================================
-            
             st.header("📋 Environmental Data Table")
             
             feature_df = pd.DataFrame({
@@ -809,10 +764,6 @@ def main():
             
             st.markdown("---")
             
-            # ========================================================================
-            # STEP 4: PERSONALIZED AI ADVISORY (OLLAMA)
-            # ========================================================================
-            
             st.header("🤖 Personalized Advisory System (Powered by Ollama)")
             
             OLLAMA_API_KEY = "432c573827ca404c80fe6ed8275b6559.-9rVYekCBzEo31M17pbcoIcx"
@@ -835,9 +786,6 @@ def main():
             st.markdown("---")
             st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')} | Environmental Health Analytics Platform")
 
-# =============================================================================
-# ENTRY POINT
-# =============================================================================
 
 if __name__ == "__main__":
     main()
