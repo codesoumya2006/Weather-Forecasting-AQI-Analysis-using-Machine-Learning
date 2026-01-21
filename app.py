@@ -282,9 +282,7 @@ def initialize_ollama_client(api_key: str, host: str = "https://api.ollama.com")
         print(f"🤖 Initializing Ollama client...")
         print(f"   Host: {host}")
         print(f"   API Key: {api_key[:20]}...")
-def initialize_ollama_client(api_key: str, host: str = "https://ollama.com"):
-    """Initialize Ollama client with Cloud API credentials"""
-    try:
+        
         client = Client(
             host=host,
             headers={'Authorization': f'Bearer {api_key}'}
@@ -296,9 +294,6 @@ def initialize_ollama_client(api_key: str, host: str = "https://ollama.com"):
         error_msg = f"❌ Ollama initialization failed: {type(e).__name__} - {str(e)}"
         print(error_msg)
         st.error(error_msg)
-        return client
-    except Exception as e:
-        st.error(f"❌ Ollama initialization failed: {e}")
         return None
 
 def classify_aqi_risk(aqi: float) -> str:
