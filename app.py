@@ -54,20 +54,14 @@ def load_model_artifacts():
         return None, None, None
 
 def get_secrets():
-    """Load API keys from secrets"""
+    """Load API keys from secrets - try multiple sources"""
     import os
-    
-    # ACTIVE API KEY - OpenWeather API
-    api_key = "dd03db6b19872c7cb9d5af234821dd03"
-    print(f"✅ API Key Activated: {api_key[:15]}...")
-    return api_key
-    # Try multiple sources
-    api_key = None
     
     # 1. Try st.secrets first
     try:
         api_key = st.secrets.get("OWM_KEY")
         if api_key and len(str(api_key).strip()) > 5:
+            print(f"✅ API Key loaded from st.secrets (OWM_KEY)")
             return api_key.strip()
     except:
         pass
@@ -75,6 +69,7 @@ def get_secrets():
     try:
         api_key = st.secrets.get("OPENWEATHER_API_KEY")
         if api_key and len(str(api_key).strip()) > 5:
+            print(f"✅ API Key loaded from st.secrets (OPENWEATHER_API_KEY)")
             return api_key.strip()
     except:
         pass
@@ -82,99 +77,112 @@ def get_secrets():
     # 2. Try environment variables
     api_key = os.getenv("OWM_KEY")
     if api_key and len(str(api_key).strip()) > 5:
+        print(f"✅ API Key loaded from environment (OWM_KEY)")
         return api_key.strip()
     
     api_key = os.getenv("OPENWEATHER_API_KEY")
     if api_key and len(str(api_key).strip()) > 5:
+        print(f"✅ API Key loaded from environment (OPENWEATHER_API_KEY)")
         return api_key.strip()
     
-    # 3. Hardcoded as last resort (for development only)
-    return "dd03db6b19872c7cb9d5af234821dd03"
+    # 3. Use provided API key
+    api_key = "069914f6178215961fe38605e11a9063"
+    print(f"✅ API Key Activated: {api_key[:15]}...")
+    return api_key
 
 
-def geocode_city(city_name: str, api_key: str) -> Optional[Tuple[float, float]]:
-    """Convert city name to (lat, lon)"""
+def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = None) -> Optional[Tuple[float, float]]:
+    """
+    Convert city name to (lat, lon) with optional country code for disambiguation.
+    
+    Parameters:
+    - city_name: Name of city (e.g., "New York", "London", "Egra")
+    - api_key: OpenWeatherMap API key
+    - country_code: Optional ISO 3166 country code (e.g., "US", "IN", "GB")
+    
+    Returns:
+    - Tuple of (latitude, longitude) or None on failure
+    """
     try:
+        # Format query with country code if provided
+        query = f"{city_name},{country_code}" if country_code else city_name
+        
         url = "https://api.openweathermap.org/geo/1.0/direct"
-        url = f"https://api.openweathermap.org/geo/1.0/direct"
         params = {
-            'q': city_name,
+            'q': query,
             'limit': 1,
             'appid': api_key
         }
         
-        print(f"🔍 Geocoding '{city_name}' with API: {api_key[:15]}...")
+        print(f"🔍 Geocoding '{query}' with API...")
         response = requests.get(url, params=params, timeout=15)
-        print(f"Response Status: {response.status_code}")
         
-        # Check status code before raise_for_status
+        # Check for auth errors first
         if response.status_code == 401:
             st.error("❌ Invalid API key - Check OpenWeather API credentials")
             print(f"❌ 401 Unauthorized - Invalid API key")
             return None
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
         
+        response.raise_for_status()
         data = response.json()
+        
         if not data:
-            st.error(f"❌ City '{city_name}' not found in database")
-            print(f"❌ No geocoding results for '{city_name}'")
+            st.error(f"❌ Location '{city_name}' not found. Try with country code (e.g., 'Egra,IN' for India)")
+            print(f"❌ No geocoding results for '{query}'")
             return None
         
         lat = float(data[0]['lat'])
         lon = float(data[0]['lon'])
+        location_name = f"{data[0].get('name', city_name)}, {data[0].get('country', '')}"
         
+        # Validate coordinates are within valid ranges
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             st.error("❌ Invalid coordinates received from API")
+            print(f"❌ Invalid coordinates: lat={lat}, lon={lon}")
             return None
         
-        print(f"✅ Geocoded '{city_name}': ({lat:.4f}, {lon:.4f})")
+        print(f"✅ Geocoded '{query}': {location_name} ({lat:.4f}°N, {lon:.4f}°E)")
+        st.info(f"📍 Location: {location_name}")
         return lat, lon
     
     except requests.exceptions.Timeout:
         st.error("❌ Request timeout - API server not responding. Try again.")
-        print(f"❌ Timeout geocoding '{city_name}'")
+        print(f"❌ Timeout geocoding '{query}'")
         return None
+    
     except requests.exceptions.HTTPError as e:
-        error_msg = f"HTTP {e.response.status_code}"
-        try:
-            error_data = e.response.json()
-            error_msg = f"HTTP {e.response.status_code}: {error_data.get('message', 'Unknown error')}"
-        except:
-            pass
-        st.error(f"❌ API Error: {error_msg}")
-        print(f"❌ HTTP Error: {error_msg}")
+        if e.response.status_code == 404:
+            st.error(f"❌ City '{city_name}' not found. Try another location or add country code.")
+        elif e.response.status_code == 401:
+            st.error("❌ Invalid API key")
+        else:
+            error_msg = f"HTTP {e.response.status_code}"
+            try:
+                error_data = e.response.json()
+                error_msg = f"HTTP {e.response.status_code}: {error_data.get('message', 'Unknown error')}"
+            except:
+                pass
+            st.error(f"❌ API Error: {error_msg}")
+        print(f"❌ HTTP Error: {e.response.status_code}")
         return None
+    
     except Exception as e:
         st.error(f"❌ Geocoding failed: {type(e).__name__} - {str(e)}")
         print(f"❌ Exception: {type(e).__name__}: {str(e)}")
         return None
-        
-        lat = data[0]['lat']
-        lon = data[0]['lon']
-        
-        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-            return None
-        
-        return lat, lon
-    
-    except requests.exceptions.Timeout:
-        st.error("❌ Geocoding timeout")
-        return None
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 404:
-            st.error(f"❌ City '{city_name}' not found")
-        elif e.response.status_code == 401:
-            st.error("❌ Invalid API key")
-        else:
-            st.error(f"❌ API error: {e.response.status_code}")
-        return None
-    except Exception as e:
-        st.error(f"❌ Geocoding failed: {str(e)}")
-        return None
 
 def fetch_weather(lat: float, lon: float, api_key: str) -> Optional[Dict]:
-    """Fetch current weather"""
+    """
+    Fetch current weather data from OpenWeatherMap API.
+    
+    Parameters:
+    - lat: Latitude
+    - lon: Longitude
+    - api_key: OpenWeatherMap API key
+    
+    Returns:
+    - Dictionary with temperature, humidity, pressure, wind_speed, description, clouds
+    """
     try:
         url = f"https://api.openweathermap.org/data/2.5/weather"
         params = {
@@ -184,26 +192,53 @@ def fetch_weather(lat: float, lon: float, api_key: str) -> Optional[Dict]:
             'units': 'metric'
         }
         
+        print(f"🌤️ Fetching weather for ({lat:.2f}, {lon:.2f})...")
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         
         data = response.json()
         
-        return {
+        weather = {
             'temperature': float(data['main']['temp']),
             'humidity': float(data['main']['humidity']),
             'pressure': float(data['main']['pressure']),
             'wind_speed': float(data['wind'].get('speed', 0)),
             'description': data['weather'][0]['description'],
-            'clouds': int(data['clouds']['all'])
+            'clouds': int(data['clouds']['all']),
+            'city': data.get('name', 'Unknown'),
+            'country': data.get('sys', {}).get('country', '')
         }
+        
+        print(f"✅ Weather data retrieved: {weather['temperature']}°C")
+        return weather
+    
+    except requests.exceptions.Timeout:
+        st.error("❌ Weather API timeout - Try again")
+        print(f"❌ Timeout fetching weather")
+        return None
+    
+    except requests.exceptions.HTTPError as e:
+        st.error(f"❌ Weather API error: HTTP {e.response.status_code}")
+        print(f"❌ HTTP Error: {e.response.status_code}")
+        return None
     
     except Exception as e:
-        st.error(f"❌ Weather fetch failed: {str(e)}")
+        st.error(f"❌ Weather fetch failed: {type(e).__name__} - {str(e)}")
+        print(f"❌ Exception: {type(e).__name__}: {str(e)}")
         return None
 
 def fetch_air_pollution(lat: float, lon: float, api_key: str) -> Optional[Dict]:
-    """Fetch air pollution data"""
+    """
+    Fetch air pollution data from OpenWeatherMap Air Pollution API.
+    
+    Parameters:
+    - lat: Latitude
+    - lon: Longitude
+    - api_key: OpenWeatherMap API key
+    
+    Returns:
+    - Dictionary with PM2.5, PM10, O3, NO2, CO, and AQI index
+    """
     try:
         url = f"https://api.openweathermap.org/data/2.5/air_pollution"
         params = {
@@ -212,24 +247,46 @@ def fetch_air_pollution(lat: float, lon: float, api_key: str) -> Optional[Dict]:
             'appid': api_key
         }
         
+        print(f"🌫️ Fetching air pollution for ({lat:.2f}, {lon:.2f})...")
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         
         data = response.json()
         
-        components = data['list'][0]['components']
+        if not data.get('list'):
+            st.error("❌ No air pollution data available for this location")
+            print(f"❌ Empty air pollution response")
+            return None
         
-        return {
+        components = data['list'][0].get('components', {})
+        main = data['list'][0].get('main', {})
+        
+        pollution = {
             'pm2_5': float(components.get('pm2_5', 25.0)),
             'pm10': float(components.get('pm10', 50.0)),
             'o3': float(components.get('o3', 50.0)),
             'no2': float(components.get('no2', 20.0)),
+            'so2': float(components.get('so2', 5.0)),
             'co': float(components.get('co', 500.0)),
-            'aqi': int(data['list'][0].get('main', {}).get('aqi', 2))
+            'aqi': int(main.get('aqi', 2))
         }
+        
+        print(f"✅ Air pollution data retrieved: AQI Index {pollution['aqi']}")
+        return pollution
+    
+    except requests.exceptions.Timeout:
+        st.error("❌ Air Pollution API timeout - Try again")
+        print(f"❌ Timeout fetching pollution data")
+        return None
+    
+    except requests.exceptions.HTTPError as e:
+        st.error(f"❌ Air Pollution API error: HTTP {e.response.status_code}")
+        print(f"❌ HTTP Error: {e.response.status_code}")
+        return None
     
     except Exception as e:
-        st.error(f"❌ Air pollution fetch failed: {str(e)}")
+        st.error(f"❌ Air pollution fetch failed: {type(e).__name__} - {str(e)}")
+        print(f"❌ Exception: {type(e).__name__}: {str(e)}")
         return None
 
 def predict_aqi(weather_data: Dict, pollution_data: Dict, model, scaler) -> Optional[float]:
@@ -295,7 +352,7 @@ def initialize_ollama_client(api_key: str, host: str = "https://api.ollama.com")
         print(error_msg)
         st.error(error_msg)
         return None
-
+    
 def classify_aqi_risk(aqi: float) -> str:
     """Classify AQI into WHO/US-EPA risk categories"""
     if aqi <= 50:
@@ -646,37 +703,55 @@ def main():
         st.stop()
     
     with st.sidebar:
-        st.header("🔍 City Search")
+        st.header("🔍 Location Search")
+        
+        st.markdown("""
+        **Enter location as:**
+        - City name: `London`
+        - City + Country: `Egra,IN` or `New York,US`
+        """)
         
         city_input = st.text_input(
-            "Enter city name:",
+            "City name (or City,Country code):",
             value="London",
-            help="e.g., London, New York, Delhi"
+            help="e.g., London, New York, Egra,IN, Delhi,IN"
         )
         
-        search_btn = st.button("🔄 Search", use_container_width=True)
+        search_btn = st.button("🔄 Search Location", use_container_width=True)
     
     if search_btn or city_input:
         with st.spinner(f"Fetching data for {city_input}..."):
-            lat_lon = geocode_city(city_input, api_key)
+            # Parse country code if provided
+            country_code = None
+            search_query = city_input
+            
+            if ',' in city_input:
+                parts = city_input.split(',')
+                search_query = parts[0].strip()
+                country_code = parts[1].strip().upper() if len(parts) > 1 else None
+            
+            lat_lon = geocode_city(search_query, api_key, country_code)
             
             if not lat_lon:
-                st.error("Could not find city. Try another search.")
+                st.error("❌ Could not find location. Try another search.")
+                st.info("💡 Tip: Try adding country code like 'Egra,IN' for Egra, India")
                 return
             
             lat, lon = lat_lon
-            st.success(f"✅ Located: {city_input} ({lat:.2f}°N, {lon:.2f}°E)")
             
             weather_data = fetch_weather(lat, lon, api_key)
             if not weather_data:
+                st.error("❌ Failed to fetch weather data")
                 return
             
             pollution_data = fetch_air_pollution(lat, lon, api_key)
             if not pollution_data:
+                st.error("❌ Failed to fetch air pollution data")
                 return
             
             aqi_predicted = predict_aqi(weather_data, pollution_data, model, scaler)
             if aqi_predicted is None:
+                st.error("❌ Failed to predict AQI")
                 return
             
             category, color = categorize_aqi(aqi_predicted)
@@ -818,45 +893,39 @@ def main():
             
             st.header("🤖 Personalized Advisory System (Powered by Ollama)")
             
-            # ACTIVE Ollama API Key
-            OLLAMA_API_KEY = "432c573827ca404c80fe6ed8275b6559.-9rVYekCBzEo31M17pbcoIcx"
+            # Load Ollama API Key
+            OLLAMA_API_KEY = None
+            try:
+                OLLAMA_API_KEY = st.secrets.get("OLLAMA_API_KEY")
+            except:
+                OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+            
+            if not OLLAMA_API_KEY:
+                # Fallback to hardcoded key (for development)
+                OLLAMA_API_KEY = "432c573827ca404c80fe6ed8275b6559.-9rVYekCBzEo31M17pbcoIcx"
+            
             print(f"\n✅ Ollama API Activated: {OLLAMA_API_KEY[:20]}...")
             
             client = initialize_ollama_client(OLLAMA_API_KEY, "https://api.ollama.com")
             
             if client:
                 try:
-                    advisory_text = generate_health_advisory_ollama(
-                        aqi_predicted,
-                        weather_data['humidity'],
-                        pollution_data.get('co', 0),
-                        pollution_data.get('no2', 0),
-                        pollution_data.get('so2', 0),
-                        pollution_data.get('o3', 0),
-                        client
-                    )
-                    st.markdown(advisory_text)
+                    with st.spinner("🤖 Generating personalized health advisory..."):
+                        advisory_text = generate_health_advisory_ollama(
+                            aqi_predicted,
+                            weather_data['humidity'],
+                            pollution_data.get('co', 0),
+                            pollution_data.get('no2', 0),
+                            pollution_data.get('so2', 0),
+                            pollution_data.get('o3', 0),
+                            client
+                        )
+                        st.markdown(advisory_text)
                 except Exception as e:
                     st.error(f"❌ Failed to generate advisory: {type(e).__name__} - {str(e)}")
                     print(f"❌ Advisory generation error: {e}")
             else:
                 st.warning("⚠️ Ollama advisory system unavailable. Continuing without AI recommendations...")
-            OLLAMA_API_KEY = "432c573827ca404c80fe6ed8275b6559.-9rVYekCBzEo31M17pbcoIcx"
-            client = initialize_ollama_client(OLLAMA_API_KEY, "https://ollama.com")
-            
-            if client:
-                advisory_text = generate_health_advisory_ollama(
-                    aqi_predicted,
-                    weather_data['humidity'],
-                    pollution_data.get('co', 0),
-                    pollution_data.get('no2', 0),
-                    pollution_data.get('so2', 0),
-                    pollution_data.get('o3', 0),
-                    client
-                )
-                st.markdown(advisory_text)
-            else:
-                st.error("❌ Failed to initialize Ollama advisory system. Please check your connection.")
             
             st.markdown("---")
             st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')} | Environmental Health Analytics Platform")
