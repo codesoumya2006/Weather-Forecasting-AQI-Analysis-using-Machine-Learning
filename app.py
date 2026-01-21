@@ -14,8 +14,6 @@ from ollama import Client
 
 warnings.filterwarnings('ignore')
 
-
-
 st.set_page_config(
     page_title="Weather-Health AQI",
     page_icon="🌍",
@@ -104,7 +102,6 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
     - Tuple of (latitude, longitude) or None on failure
     """
     try:
-        # Format query with country code if provided
         query = f"{city_name},{country_code}" if country_code else city_name
         
         url = "https://api.openweathermap.org/geo/1.0/direct"
@@ -116,8 +113,6 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
         
         print(f"🔍 Geocoding '{query}' with API...")
         response = requests.get(url, params=params, timeout=15)
-        
-        # Check for auth errors first
         if response.status_code == 401:
             st.error("❌ Invalid API key - Check OpenWeather API credentials")
             print(f"❌ 401 Unauthorized - Invalid API key")
@@ -127,7 +122,6 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
         data = response.json()
         
         if not data:
-            # If no country code was provided, suggest adding one
             if not country_code:
                 st.error(f"❌ Location '{city_name}' not found. Try adding country code.")
                 st.info("""
@@ -149,17 +143,13 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
         lon = float(data[0]['lon'])
         location_name = f"{data[0].get('name', city_name)}, {data[0].get('country', '')}"
         country_found = data[0].get('country', '').upper()
-        
-        # Validate coordinates are within valid ranges
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             st.error("❌ Invalid coordinates received from API")
             print(f"❌ Invalid coordinates: lat={lat}, lon={lon}")
             return None
         
-        # If no country code was specified, show a helpful message about possible alternatives
         if not country_code:
-            # Check if this might not be the intended location (e.g., small town vs major city)
-            if len(data) > 1:  # Multiple results available
+            if len(data) > 1:  
                 st.warning(f"""
                 ⚠️ **Found:** {location_name}
                 
@@ -199,17 +189,6 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
         return None
 
 def fetch_weather(lat: float, lon: float, api_key: str) -> Optional[Dict]:
-    """
-    Fetch current weather data from OpenWeatherMap API.
-    
-    Parameters:
-    - lat: Latitude
-    - lon: Longitude
-    - api_key: OpenWeatherMap API key
-    
-    Returns:
-    - Dictionary with temperature, humidity, pressure, wind_speed, description, clouds
-    """
     try:
         url = f"https://api.openweathermap.org/data/2.5/weather"
         params = {
@@ -255,17 +234,6 @@ def fetch_weather(lat: float, lon: float, api_key: str) -> Optional[Dict]:
         return None
 
 def fetch_air_pollution(lat: float, lon: float, api_key: str) -> Optional[Dict]:
-    """
-    Fetch air pollution data from OpenWeatherMap Air Pollution API.
-    
-    Parameters:
-    - lat: Latitude
-    - lon: Longitude
-    - api_key: OpenWeatherMap API key
-    
-    Returns:
-    - Dictionary with PM2.5, PM10, O3, NO2, CO, and AQI index
-    """
     try:
         url = f"https://api.openweathermap.org/data/2.5/air_pollution"
         params = {
@@ -317,12 +285,6 @@ def fetch_air_pollution(lat: float, lon: float, api_key: str) -> Optional[Dict]:
         return None
 
 def predict_aqi(weather_data: Dict, pollution_data: Dict, model, scaler) -> Optional[float]:
-    """
-    Predict AQI using model.
-    
-    CRITICAL: Features must be in EXACT order and shape.
-    Features: [temperature, humidity, pressure, wind_speed, pm2_5, pm10]
-    """
     try:
         feature_vector = np.array([
             weather_data['temperature'],
@@ -347,10 +309,6 @@ def predict_aqi(weather_data: Dict, pollution_data: Dict, model, scaler) -> Opti
     except Exception as e:
         st.error(f"❌ Prediction failed: {str(e)}")
         return None
-
-# =============================================================================
-# AQI CATEGORIZATION
-# =============================================================================
 
 def categorize_aqi(aqi: float) -> Tuple[str, str]:
     """Return (category_name, hex_color)"""
@@ -556,7 +514,6 @@ def create_aqi_forecast_chart(aqi_base: float, days: int = 5) -> go.Figure:
     
     fig = go.Figure()
     
-    # Color bands based on AQI categories
     colors = []
     for v in aqi_forecast:
         if v <= 50:
@@ -594,7 +551,6 @@ def create_aqi_forecast_chart(aqi_base: float, days: int = 5) -> go.Figure:
     return fig
 
 def create_temperature_chart(base_temp: float, days: int = 5) -> go.Figure:
-    """Temperature trend line chart"""
     dates = [datetime.now() + timedelta(hours=6*i) for i in range(days)]
     
     temp_trend = [base_temp + 3 * np.sin(i * 0.5) + np.random.normal(0, 0.5) for i in range(days)]
@@ -622,7 +578,6 @@ def create_temperature_chart(base_temp: float, days: int = 5) -> go.Figure:
     return fig
 
 def create_humidity_chart(base_humidity: float, days: int = 5) -> go.Figure:
-    """Humidity trend line chart"""
     dates = [datetime.now() + timedelta(hours=6*i) for i in range(days)]
     
     humidity_trend = [base_humidity + 15 * np.sin(i * 0.5) + np.random.normal(0, 2) for i in range(days)]
@@ -651,7 +606,6 @@ def create_humidity_chart(base_humidity: float, days: int = 5) -> go.Figure:
     return fig
 
 def create_wind_speed_chart(base_wind: float, days: int = 5) -> go.Figure:
-    """Wind speed trend line chart"""
     dates = [datetime.now() + timedelta(hours=6*i) for i in range(days)]
     
     wind_trend = [max(0, base_wind + 2 * np.sin(i * 0.5) + np.random.normal(0, 0.3)) for i in range(days)]
@@ -679,7 +633,6 @@ def create_wind_speed_chart(base_wind: float, days: int = 5) -> go.Figure:
     return fig
 
 def create_pollutants_combined_chart(pollution_data: Dict, days: int = 5) -> go.Figure:
-    """PM2.5 and PM10 combined trend chart"""
     dates = [datetime.now() + timedelta(hours=6*i) for i in range(days)]
     
     pm25_base = pollution_data.get('pm2_5', 25.0)
@@ -761,7 +714,6 @@ def main():
     
     if search_btn or city_input:
         with st.spinner(f"Fetching data for {city_input}..."):
-            # Parse country code if provided
             country_code = None
             search_query = city_input
             
@@ -846,7 +798,7 @@ def main():
                 fig_humidity = create_humidity_chart(weather_data['humidity'])
                 st.plotly_chart(fig_humidity, use_container_width=True)
             
-            # Wind speed and pollutants
+        
             col_viz3, col_viz4 = st.columns(2)
             
             with col_viz3:
@@ -857,11 +809,9 @@ def main():
                 fig_pollutants = create_pollutants_combined_chart(pollution_data)
                 st.plotly_chart(fig_pollutants, use_container_width=True)
             
-            # AQI trend
             fig_aqi = create_aqi_forecast_chart(aqi_predicted)
             st.plotly_chart(fig_aqi, use_container_width=True)
             
-            # AQI Category Display
             category_col = st.columns([2, 1])[0]
             with st.container():
                 col_cat1, col_cat2 = st.columns([3, 1])
