@@ -148,7 +148,7 @@ def geocode_city(city_name: str, api_key: str) -> Optional[Tuple[float, float]]:
     except Exception as e:
         st.error(f"❌ Geocoding failed: {type(e).__name__} - {str(e)}")
         print(f"❌ Exception: {type(e).__name__}: {str(e)}")
-            return None
+        return None
         
         lat = data[0]['lat']
         lon = data[0]['lon']
