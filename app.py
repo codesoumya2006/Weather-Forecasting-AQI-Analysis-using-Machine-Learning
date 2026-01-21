@@ -23,6 +23,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
 REQUIRED_FEATURES = ['temperature', 'humidity', 'pressure', 'wind_speed', 'pm2_5', 'pm10']
 
 # AQI Categories (US EPA Standard)
@@ -57,22 +62,59 @@ def get_secrets():
     """Load API keys from secrets"""
     import os
     
+<<<<<<< HEAD
     # ACTIVE API KEY - OpenWeather API
     api_key = "dd03db6b19872c7cb9d5af234821dd03"
     print(f"✅ API Key Activated: {api_key[:15]}...")
     return api_key
+=======
+    # Try multiple sources
+    api_key = None
+    
+    # 1. Try st.secrets first
+    try:
+        api_key = st.secrets.get("OWM_KEY")
+        if api_key and len(str(api_key).strip()) > 5:
+            return api_key.strip()
+    except:
+        pass
+    
+    try:
+        api_key = st.secrets.get("OPENWEATHER_API_KEY")
+        if api_key and len(str(api_key).strip()) > 5:
+            return api_key.strip()
+    except:
+        pass
+    
+    # 2. Try environment variables
+    api_key = os.getenv("OWM_KEY")
+    if api_key and len(str(api_key).strip()) > 5:
+        return api_key.strip()
+    
+    api_key = os.getenv("OPENWEATHER_API_KEY")
+    if api_key and len(str(api_key).strip()) > 5:
+        return api_key.strip()
+    
+    # 3. Hardcoded as last resort (for development only)
+    return "dd03db6b19872c7cb9d5af234821dd03"
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
 
 
 def geocode_city(city_name: str, api_key: str) -> Optional[Tuple[float, float]]:
     """Convert city name to (lat, lon)"""
     try:
+<<<<<<< HEAD
         url = "https://api.openweathermap.org/geo/1.0/direct"
+=======
+        url = f"https://api.openweathermap.org/geo/1.0/direct"
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
         params = {
             'q': city_name,
             'limit': 1,
             'appid': api_key
         }
         
+<<<<<<< HEAD
         print(f"🔍 Geocoding '{city_name}' with API: {api_key[:15]}...")
         response = requests.get(url, params=params, timeout=15)
         print(f"Response Status: {response.status_code}")
@@ -83,10 +125,14 @@ def geocode_city(city_name: str, api_key: str) -> Optional[Tuple[float, float]]:
             print(f"❌ 401 Unauthorized - Invalid API key")
             return None
         
+=======
+        response = requests.get(url, params=params, timeout=10)
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
         response.raise_for_status()
         
         data = response.json()
         if not data:
+<<<<<<< HEAD
             st.error(f"❌ City '{city_name}' not found in database")
             print(f"❌ No geocoding results for '{city_name}'")
             return None
@@ -118,6 +164,31 @@ def geocode_city(city_name: str, api_key: str) -> Optional[Tuple[float, float]]:
     except Exception as e:
         st.error(f"❌ Geocoding failed: {type(e).__name__} - {str(e)}")
         print(f"❌ Exception: {type(e).__name__}: {str(e)}")
+=======
+            return None
+        
+        lat = data[0]['lat']
+        lon = data[0]['lon']
+        
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return None
+        
+        return lat, lon
+    
+    except requests.exceptions.Timeout:
+        st.error("❌ Geocoding timeout")
+        return None
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            st.error(f"❌ City '{city_name}' not found")
+        elif e.response.status_code == 401:
+            st.error("❌ Invalid API key")
+        else:
+            st.error(f"❌ API error: {e.response.status_code}")
+        return None
+    except Exception as e:
+        st.error(f"❌ Geocoding failed: {str(e)}")
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
         return None
 
 def fetch_weather(lat: float, lon: float, api_key: str) -> Optional[Dict]:
@@ -223,6 +294,7 @@ def categorize_aqi(aqi: float) -> Tuple[str, str]:
     
     return 'Hazardous', '#7E0023'
 
+<<<<<<< HEAD
 def initialize_ollama_client(api_key: str, host: str = "https://api.ollama.com"):
     """Initialize Ollama client with Cloud API credentials"""
     try:
@@ -230,10 +302,16 @@ def initialize_ollama_client(api_key: str, host: str = "https://api.ollama.com")
         print(f"   Host: {host}")
         print(f"   API Key: {api_key[:20]}...")
         
+=======
+def initialize_ollama_client(api_key: str, host: str = "https://ollama.com"):
+    """Initialize Ollama client with Cloud API credentials"""
+    try:
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
         client = Client(
             host=host,
             headers={'Authorization': f'Bearer {api_key}'}
         )
+<<<<<<< HEAD
         
         print(f"✅ Ollama client initialized successfully")
         return client
@@ -241,6 +319,11 @@ def initialize_ollama_client(api_key: str, host: str = "https://api.ollama.com")
         error_msg = f"❌ Ollama initialization failed: {type(e).__name__} - {str(e)}"
         print(error_msg)
         st.error(error_msg)
+=======
+        return client
+    except Exception as e:
+        st.error(f"❌ Ollama initialization failed: {e}")
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
         return None
 
 def classify_aqi_risk(aqi: float) -> str:
@@ -765,6 +848,7 @@ def main():
             
             st.header("🤖 Personalized Advisory System (Powered by Ollama)")
             
+<<<<<<< HEAD
             # ACTIVE Ollama API Key
             OLLAMA_API_KEY = "432c573827ca404c80fe6ed8275b6559.-9rVYekCBzEo31M17pbcoIcx"
             print(f"\n✅ Ollama API Activated: {OLLAMA_API_KEY[:20]}...")
@@ -788,6 +872,24 @@ def main():
                     print(f"❌ Advisory generation error: {e}")
             else:
                 st.warning("⚠️ Ollama advisory system unavailable. Continuing without AI recommendations...")
+=======
+            OLLAMA_API_KEY = "432c573827ca404c80fe6ed8275b6559.-9rVYekCBzEo31M17pbcoIcx"
+            client = initialize_ollama_client(OLLAMA_API_KEY, "https://ollama.com")
+            
+            if client:
+                advisory_text = generate_health_advisory_ollama(
+                    aqi_predicted,
+                    weather_data['humidity'],
+                    pollution_data.get('co', 0),
+                    pollution_data.get('no2', 0),
+                    pollution_data.get('so2', 0),
+                    pollution_data.get('o3', 0),
+                    client
+                )
+                st.markdown(advisory_text)
+            else:
+                st.error("❌ Failed to initialize Ollama advisory system. Please check your connection.")
+>>>>>>> 683e64e2e4ec7f0377815b49efef66d4cda9b0f5
             
             st.markdown("---")
             st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')} | Environmental Health Analytics Platform")
