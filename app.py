@@ -86,7 +86,7 @@ def get_secrets():
         return api_key.strip()
     
     # 3. Use provided API key
-    api_key = "069914f6178215961fe38605e11a9063"
+    api_key = "dd03db6b19872c7cb9d5af234821dd03"
     print(f"✅ API Key Activated: {api_key[:15]}...")
     return api_key
 
