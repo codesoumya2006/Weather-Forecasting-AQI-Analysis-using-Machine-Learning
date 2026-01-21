@@ -127,13 +127,28 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
         data = response.json()
         
         if not data:
-            st.error(f"❌ Location '{city_name}' not found. Try with country code (e.g., 'Egra,IN' for India)")
+            # If no country code was provided, suggest adding one
+            if not country_code:
+                st.error(f"❌ Location '{city_name}' not found. Try adding country code.")
+                st.info("""
+                💡 **Tip:** Use format `City,CountryCode` for ambiguous names:
+                - `Egra,IN` → Egra, India
+                - `New York,US` → New York, USA
+                - `London,GB` → London, UK
+                
+                Common country codes:
+                - IN = India | US = USA | GB = UK | FR = France | DE = Germany
+                - IT = Italy | JP = Japan | CN = China | AU = Australia
+                """)
+            else:
+                st.error(f"❌ Location '{query}' not found.")
             print(f"❌ No geocoding results for '{query}'")
             return None
         
         lat = float(data[0]['lat'])
         lon = float(data[0]['lon'])
         location_name = f"{data[0].get('name', city_name)}, {data[0].get('country', '')}"
+        country_found = data[0].get('country', '').upper()
         
         # Validate coordinates are within valid ranges
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
@@ -141,8 +156,20 @@ def geocode_city(city_name: str, api_key: str, country_code: Optional[str] = Non
             print(f"❌ Invalid coordinates: lat={lat}, lon={lon}")
             return None
         
+        # If no country code was specified, show a helpful message about possible alternatives
+        if not country_code:
+            # Check if this might not be the intended location (e.g., small town vs major city)
+            if len(data) > 1:  # Multiple results available
+                st.warning(f"""
+                ⚠️ **Found:** {location_name}
+                
+                If this is not the location you're looking for, try adding country code:
+                - `{city_name},IN` for India
+                - `{city_name},US` for USA
+                - `{city_name},GB` for UK
+                """)
+        
         print(f"✅ Geocoded '{query}': {location_name} ({lat:.4f}°N, {lon:.4f}°E)")
-        st.info(f"📍 Location: {location_name}")
         return lat, lon
     
     except requests.exceptions.Timeout:
@@ -706,15 +733,28 @@ def main():
         st.header("🔍 Location Search")
         
         st.markdown("""
-        **Enter location as:**
-        - City name: `London`
-        - City + Country: `Egra,IN` or `New York,US`
+        ### How to Search:
+        
+        **Format:** `City,CountryCode` or just `City`
+        
+        **Examples:**
+        - ✓ `Egra,IN` → Egra, India
+        - ✓ `New York,US` → New York, USA
+        - ✓ `London,GB` → London, UK
+        - ✓ `London` → London (global search)
+        
+        **Common Country Codes:**
+        - 🇮🇳 IN = India
+        - 🇺🇸 US = USA
+        - 🇬🇧 GB = UK
+        - 🇫🇷 FR = France
+        - 🇩🇪 DE = Germany
         """)
         
         city_input = st.text_input(
-            "City name (or City,Country code):",
+            "Search location:",
             value="London",
-            help="e.g., London, New York, Egra,IN, Delhi,IN"
+            placeholder="e.g., Egra,IN or New York,US"
         )
         
         search_btn = st.button("🔄 Search Location", use_container_width=True)
